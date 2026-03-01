@@ -1,0 +1,35 @@
+version: "3.8"
+
+services:
+  docling:
+    image: quay.io/docling-project/docling-serve-cpu:latest
+    restart: unless-stopped
+    networks:
+      - docling_net
+    environment:
+      DOCLING_SERVE_ENABLE_UI: False
+      DOCLING_SERVE_MAX_SYNC_WAIT: 180
+
+  docling-proxy:
+    image: python:3.14-slim
+    restart: unless-stopped
+    working_dir: /app
+    environment:
+      - DOCLING_URL=http://docling:5001
+      - MIN_TEXT_LENGTH=50
+      - DOCLING_TIMEOUT=180
+      - LOG_LEVEL=INFO
+    command: >
+      bash -c 'pip install --no-cache-dir fastapi uvicorn python-multipart httpx anyio requests &&
+      uvicorn docling-proxy:app --host 0.0.0.0 --port 5001'
+    volumes:
+      - ./docling-proxy.py:/app/docling-proxy.py:ro
+    networks:
+      - docling_net
+    depends_on:
+      - docling
+    ports:
+      - "5001:5001" # Expose for testing/external clients. Remove if docker-internal only.
+
+networks:
+  docling_net:
